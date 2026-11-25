@@ -1,0 +1,30 @@
+name: Build UPO
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+      # ForgeGradle 2.1 requires Gradle 2.x; 2.14.1 is the version Forge 1.8.9 MDK shipped with.
+      - name: Set up Gradle 2.14.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '2.14.1'
+      - name: Build
+        run: gradle setupCIWorkspace build --stacktrace
+      - name: Verify JAR exists
+        run: |
+          ls -l build/libs
+          test -n "$(ls build/libs/*.jar 2>/dev/null)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UltimatePerformanceOptimizer
+          path: build/libs/*.jar
