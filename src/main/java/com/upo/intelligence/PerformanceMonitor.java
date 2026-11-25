@@ -26,6 +26,7 @@ public final class PerformanceMonitor {
     private volatile double avgFps, low1Fps, avgFrameMs, worstFrameMs;
     private volatile long heapUsedMb, heapMaxMb, gcCountDelta, gcTimeMsDelta;
 
+    private final MemoryPressureAnalyzer pressure = new MemoryPressureAnalyzer();
     private final List<GarbageCollectorMXBean> gcBeans = ManagementFactory.getGarbageCollectorMXBeans();
 
     public PerformanceMonitor(int intervalMs) { this.intervalNs = intervalMs * 1_000_000L; }
@@ -40,10 +41,14 @@ public final class PerformanceMonitor {
             if (count < WINDOW) count++;
         }
         lastStart = now;
-        if (now - lastSample >= intervalNs) { lastSample = now; sample(); }
+        if (now - lastSample >= intervalNs) {
+            long elapsedMs = lastSample == 0 ? intervalNs / 1_000_000L : (now - lastSample) / 1_000_000L;
+            lastSample = now;
+            sample(elapsedMs);
+        }
     }
 
-    private void sample() {
+    private void sample(long elapsedMs) {
         if (count < 10) return;
         long[] copy = Arrays.copyOf(frames, count);
         Arrays.sort(copy);
@@ -68,11 +73,14 @@ public final class PerformanceMonitor {
             if (b.getCollectionTime() > 0) t += b.getCollectionTime();
         }
         if (lastGcCount >= 0) { gcCountDelta = c - lastGcCount; gcTimeMsDelta = t - lastGcTimeMs; }
+        pressure.update(gcTimeMsDelta, elapsedMs);
         lastGcCount = c; lastGcTimeMs = t;
     }
 
+    public MemoryPressureAnalyzer.Level memoryPressure() { return pressure.level(); }
+
     public String summary() {
-        return String.format("FPS avg %.0f | 1%% low %.0f | frame %.2f ms (worst %.1f) | heap %d/%d MB | GC +%d (%d ms) | GPU: unavailable",
-                avgFps, low1Fps, avgFrameMs, worstFrameMs, heapUsedMb, heapMaxMb, gcCountDelta, gcTimeMsDelta);
+        return String.format("FPS avg %.0f | 1%% low %.0f | frame %.2f ms (worst %.1f) | heap %d/%d MB | GC +%d (%d ms) | mem pressure %s | GPU: unavailable",
+                avgFps, low1Fps, avgFrameMs, worstFrameMs, heapUsedMb, heapMaxMb, gcCountDelta, gcTimeMsDelta, pressure.level());
     }
 }

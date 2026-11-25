@@ -4,6 +4,7 @@ import com.upo.compatibility.CompatibilityInfo;
 import com.upo.config.UPOConfig;
 import com.upo.engine.ModuleManager;
 import com.upo.gui.GuiBootstrap;
+import com.upo.intelligence.JvmReport;
 import com.upo.intelligence.PerformanceMonitor;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.Mod;
@@ -36,6 +37,7 @@ public class UPO {
     @Mod.EventHandler
     public void init(FMLInitializationEvent e) {
         // Background work: independent of any GUI setting.
+        JvmReport.log();
         monitor = new PerformanceMonitor(UPOConfig.metricsIntervalMs);
         FMLCommonHandler.instance().bus().register(monitor);
 
